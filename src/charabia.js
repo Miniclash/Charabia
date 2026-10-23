@@ -19,7 +19,7 @@ const gauss = r => (r() + r() + r() - 1.5) * 2;
 
 /* ============ Données ============ */
 const MOODS = {
-  normal:   { n:'Normal',    d:'La voix telle que tu l’as réglée.' },
+  normal:   { n:'Normal',    d:'La voix telle que vous l’avez réglée.' },
   joyeux:   { n:'Joyeux',    d:'Plus aigu, la mélodie sautille.', semi:3, speed:1.1, var:1.5, bounce:1, inton:1.3 },
   triste:   { n:'Triste',    d:'Grave et lent, les fins de phrase retombent.', semi:-2.5, speed:.72, var:.6, fall:1, breath:18, vib:12, gain:.85, pauseMul:1.4 },
   effraye:  { n:'Effrayé',   d:'Aigu, pressé, ça tremble et ça bégaie.', semi:4, speed:1.28, var:1.3, trem:[9,.4], stutter:.22, hesit:.12, jitter:20 },

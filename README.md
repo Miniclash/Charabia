@@ -20,6 +20,8 @@ python3 -m http.server
 | `src/creature.js` | Les créatures ( + bouche calée sur les voyelles). |
 | `src/studio.js` | L'interface du studio. |
 | `css/studio.css` | Le style de l'interface (pixel CRT). |
+| `data/repliques.js` | Les répliques proposées par le studio, en français et en anglais. À éditer librement. |
+| `data/personnages.js` | Les personnages du deck : nom, rôle, réplique fétiche et voix (réglages ou code `MUMBLE1.`). À éditer librement. |
 | `examples/minimal.html` | Utiliser le moteur seul, sans le studio. |
 
 ## Utiliser le moteur dans un jeu

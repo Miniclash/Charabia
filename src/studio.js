@@ -12,33 +12,23 @@ const { MOODS, MOOD_KEYS, DEFAULT, KEYS, applyMacros, sanitize, moodMix } = Char
 const encodeVoice = Charabia.encode, decodeVoice = Charabia.decode, jsonVoice = Charabia.toJSON;
 
 /* ============ Contenu du studio ============ */
-const SAMPLES = {
-  fr:["Salut, voyageur ! Tu cherches quelque chose ?","Je… je crois qu'il y a quelque chose dans la cave.","Tu as trouvé la clé ? NON ?! Mais où est-elle passée ?","Le forgeron dit que l'épée sera prête demain. Peut-être.","Attention, le pont est glissant quand il pleut.","Trois pièces d'or pour une pomme ? C'est du vol !","Bonne nuit… et ne fais pas de bruit en partant."],
-  en:["Hello there, traveler! Looking for something?","I... I think there's something in the basement.","You found the key? NO?! Then where did it go?","The blacksmith says your sword will be ready tomorrow. Maybe.","Careful, the bridge gets slippery when it rains.","Three gold coins for an apple? That's robbery!","Good night... and keep it quiet on your way out."]
-};
-
-const PRESETS = [
-  { role:"L'apprenti", fr:"Salut, voyageur ! Tu cherches quelque chose ?", en:"Hi there, traveler! Looking for something?",
-    p:{ name:'Pip', seed:12, hue:150, age:10, gender:45, size:28, mood:'joyeux', moodAmt:60, src:'voix', grain:'syllabe', pitchVar:2.6 } },
-  { role:'La doyenne', fr:"Ah, la jeunesse… De mon temps, on marchait jusqu'au village.", en:"Ah, youth... Back in my day, we walked all the way to the village.",
-    p:{ name:'Odette', seed:301, hue:285, age:84, gender:12, size:40, mood:'normal', src:'voix', pitchVar:2 } },
-  { role:'Le troll du pont', fr:"VA-T'EN ! C'est MON pont, pas le tien !", en:"GET OFF! This is MY bridge, not yours!",
-    p:{ name:'Gorbak', seed:66, hue:95, age:40, gender:92, size:96, mood:'furieux', moodAmt:75, src:'voix', echo:20 } },
-  { role:'La fée', fr:"Tu as vu les lucioles ? Elles chantent la nuit !", en:"Did you see the fireflies? They sing at night!",
-    p:{ name:'Lilou', seed:7, hue:320, age:19, gender:10, size:4, mood:'joyeux', moodAmt:40, src:'doux', grain:'lettre', scale:'penta', pitchVar:4, gate:55, echo:25 } },
-  { role:"L'automate", fr:"Analyse terminée. Aucune forme de vie détectée.", en:"Scan complete. No life forms detected.",
-    p:{ name:'K-7', seed:7007, hue:200, age:30, gender:50, size:55, mood:'robot', moodAmt:100, src:'chip' } },
-  { role:'Le matelot', fr:"Encore un verre et j'te raconte la tempête de 1812…", en:"One more round an' I'll tell ya 'bout the storm of 1812...",
-    p:{ name:'Barnabé', seed:888, hue:28, age:56, gender:80, size:70, mood:'ivre', moodAmt:80, src:'voix' } },
-  { role:'Le spectre', fr:"Ne descends pas à la cave… elle t'attend.", en:"Don't go down to the cellar... it's waiting for you.",
-    p:{ name:'Ombre', seed:404, hue:235, age:45, gender:50, size:60, mood:'chuchote', moodAmt:100, src:'voix', speed:8, echo:65 } },
-  { role:'Le marchand', fr:"Bienvenue ! Tout est à moitié prix, enfin presque.", en:"Welcome! Everything's half price. Well, almost.",
-    p:{ name:'Bobo', seed:150, hue:45, age:35, gender:60, size:50, mood:'normal', src:'bip', grain:'lettre', speed:18, pitchVar:.6, gate:45, pitch:180, artic:20 } },
-  { role:'Le garde', fr:"Halte… qui va là… bon, tant pis, je dors.", en:"Halt... who goes there... eh, never mind, I'm sleeping.",
-    p:{ name:'Firmin', seed:31, hue:10, age:48, gender:75, size:75, mood:'endormi', moodAmt:85, src:'voix' } },
-  { role:'Le gobelin', fr:"N-non ! J'ai rien volé, c'était déjà comme ça !", en:"N-no! I didn't steal it, it was already like that!",
-    p:{ name:'Krik', seed:2, hue:110, age:25, gender:55, size:12, mood:'effraye', moodAmt:85, src:'voix' } }
-];
+// Contenu éditable : data/repliques.js et data/personnages.js
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const asList = (l, fb) => Array.isArray(l) && l.filter(x => typeof x === 'string' && x.trim()).length ? l.filter(x => typeof x === 'string' && x.trim()) : fb;
+const RAW_LINES = window.CHARABIA_REPLIQUES || {};
+const SAMPLES = { fr:asList(RAW_LINES.fr, ['Bonjour !']), en:asList(RAW_LINES.en, ['Hello!']) };
+const PRESETS = (Array.isArray(window.CHARABIA_PERSONNAGES) ? window.CHARABIA_PERSONNAGES : []).map(c => {
+  let p = null;
+  if (c.code){ try { p = decodeVoice(c.code); } catch(e){ console.warn('Charabia : code de voix illisible pour', c.nom); } }
+  if (!p){
+    const v = c.voix || {};
+    p = Object.assign({}, DEFAULT, { age:v.age ?? DEFAULT.age, gender:v.gender ?? DEFAULT.gender, size:v.size ?? DEFAULT.size });
+    applyMacros(p); Object.assign(p, v); p = sanitize(p);
+  }
+  if (c.nom) p.name = String(c.nom).slice(0, 24);
+  return { role:c.role || '', fr:c.fr || c.en || SAMPLES.fr[0], en:c.en || c.fr || SAMPLES.en[0], p };
+});
+if (!PRESETS.length) PRESETS.push({ role:'', fr:SAMPLES.fr[0], en:SAMPLES.en[0], p:sanitize(DEFAULT) });
 
 /* ============ État ============ */
 let P = Object.assign({}, DEFAULT);
@@ -240,7 +230,7 @@ tabs.forEach((t, i) => {
 const codeMsg = $('#codeMsg');
 function say(msg, err){ codeMsg.textContent = msg; codeMsg.classList.toggle('err', !!err); }
 function copyText(text, fallbackEl, okMsg){
-  const fallback = () => { if (fallbackEl){ fallbackEl.focus(); fallbackEl.select && fallbackEl.select(); } say('Sélectionné : fais Ctrl + C pour copier.'); };
+  const fallback = () => { if (fallbackEl){ fallbackEl.focus(); fallbackEl.select && fallbackEl.select(); } say('Code sélectionné : faites Ctrl + C pour le copier.'); };
   try { navigator.clipboard.writeText(text).then(() => say(okMsg), fallback); } catch(e){ fallback(); }
 }
 $('#copyCode').addEventListener('click', () => copyText(P._code, $('#codeOut'), 'Code copié.'));
@@ -248,20 +238,17 @@ $('#copyJson').addEventListener('click', () => copyText(jsonVoice(P), null, 'JSO
 $('#loadCode').addEventListener('click', loadFromInput);
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') loadFromInput(); });
 function loadFromInput(){
-  const v = $('#codeIn').value; if (!v.trim()){ say('Colle d’abord un code dans le champ.', true); return; }
+  const v = $('#codeIn').value; if (!v.trim()){ say('Collez d’abord un code dans le champ.', true); return; }
   try { P = decodeVoice(v); presetIdx = -1; changed(true, true); say('Voix chargée : ' + P.name + '.'); $('#codeIn').value = ''; flipPortrait(); play(lineEl.value); }
-  catch(e){ say('Ce code n’est pas lisible. Vérifie qu’il commence par MUMBLE1. et qu’il est complet.', true); }
+  catch(e){ say('Ce code n’est pas lisible. Vérifiez qu’il commence par MUMBLE1. et qu’il est complet.', true); }
 }
 
 /* ============ Deck ============ */
 const deck = $('#deck');
-function presetVoice(i){
-  const pr = PRESETS[i]; const p = Object.assign({}, DEFAULT, { age:pr.p.age, gender:pr.p.gender, size:pr.p.size });
-  applyMacros(p); Object.assign(p, pr.p); return sanitize(p);
-}
-deck.innerHTML = PRESETS.map((pr, i) => `<button type="button" class="card" data-i="${i}" aria-label="${pr.p.name}, ${pr.role}">
-  <span class="role">${pr.role}</span><span class="art" style="background:hsl(${pr.p.hue} 30% 22%)"><canvas width="40" height="40"></canvas></span>
-  <span class="nm">${pr.p.name}</span><span class="tag">${MOODS[pr.p.mood].n}</span></button>`).join('');
+function presetVoice(i){ return Object.assign({}, PRESETS[i].p); }
+deck.innerHTML = PRESETS.map((pr, i) => `<button type="button" class="card" data-i="${i}" aria-label="${esc(pr.p.name)}, ${esc(pr.role)}">
+  <span class="role">${esc(pr.role)}</span><span class="art" style="background:hsl(${pr.p.hue} 30% 22%)"><canvas width="40" height="40"></canvas></span>
+  <span class="nm">${esc(pr.p.name)}</span><span class="tag">${MOODS[pr.p.mood].n}</span></button>`).join('');
 deck.querySelectorAll('.card').forEach(c => {
   const i = +c.dataset.i;
   drawCreature(c.querySelector('canvas'), presetVoice(i), PRESETS[i].p.mood, { t:0, mouth:0, anim:false });
