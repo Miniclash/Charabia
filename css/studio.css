@@ -9,6 +9,12 @@
   --body:'Pixelify Sans',ui-monospace,'Courier New',monospace;
   color-scheme:dark;
 }
+/* Reset (le hébergeur d'artifact le fournit, GitHub Pages non) */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img,canvas{max-width:100%}
+[hidden]{display:none!important}
 html,body{background:var(--felt-4)}
 body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
