@@ -1,4 +1,4 @@
-/* Studio Mumble Speak : interface au-dessus du moteur Charabia (src/charabia.js). */
+/* Studio Charabia : interface au-dessus du moteur (src/charabia.js). */
 (() => {
 'use strict';
 const $ = s => document.querySelector(s);
@@ -429,10 +429,10 @@ function frame(ts){
 
 /* ============ Logo, CRT, démarrage ============ */
 const logo = $('#logo');
-'MUMBLE SPEAK'.split('').forEach((c, i) => {
+'CHARABIA'.split('').forEach((c, i) => {
   if (c === ' '){ logo.appendChild(document.createTextNode(' ')); return; }
   const s = document.createElement('span'); s.textContent = c; s.style.setProperty('--i', i); s.setAttribute('aria-hidden', 'true');
-  if (i > 6) s.className = 'sp'; logo.appendChild(s);
+  if (i > 3) s.className = 'sp'; logo.appendChild(s);
 });
 const crtT = $('#crtToggle');
 const crtSaved = store.get('ms-crt'); if (crtSaved === false) crtT.checked = false;
