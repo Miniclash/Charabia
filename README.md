@@ -16,10 +16,10 @@ python3 -m http.server
 
 | Fichier | Rôle |
 |---|---|
-| `src/charabia.js` | Le moteur, autonome : analyse du texte (FR/EN), prosodie, humeurs, synthèse à formants, code de voix. C'est le seul fichier dont un jeu a besoin. |
-| `src/creature.js` | La créature pixel du studio (bouche calée sur les voyelles). |
+| `src/charabia.js` | Le moteur : analyse du texte (FR/EN), prosodie, humeurs, synthèse à formants, code de voix. |
+| `src/creature.js` | Les créatures ( + bouche calée sur les voyelles). |
 | `src/studio.js` | L'interface du studio. |
-| `css/studio.css` | Le style (feutre façon Balatro, CRT). |
+| `css/studio.css` | Le style de l'interface (pixel CRT). |
 | `examples/minimal.html` | Utiliser le moteur seul, sans le studio. |
 
 ## Utiliser le moteur dans un jeu
