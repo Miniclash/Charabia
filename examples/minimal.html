@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charabia : exemple minimal</title>
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; background: #111; color: #eee; }
+  #box { min-height: 4em; padding: 1rem; border: 3px solid #eee; border-radius: 6px; margin: 1rem 0; white-space: pre-wrap; }
+  button { font: inherit; padding: .4em 1em; cursor: pointer; }
+</style>
+</head>
+<body>
+<p>Le moteur seul, sans le studio : une boîte de dialogue qui se remplit au rythme de la voix.</p>
+<div id="box"></div>
+<button id="talk">Parler</button>
+
+<script src="../src/charabia.js"></script>
+<script>
+  // Code copié depuis le studio (carte « Bobo, le marchand »).
+  const voix = Charabia.decode('MUMBLE1.WyJCb2JvIiwxNTAsNDUsMzUsNjAsNTAsIm5vcm1hbCIsNzAsMTgsMC42LDUwLDUwLDEsImxpYnJlIiwibGV0dHJlIiwiZnIiLDAsImJpcCIsMTgwLDEuMDQsOCwyMCw0NSw2LDQsMCwwLDgwXQ');
+  const texte = "Bienvenue ! Tout est à moitié prix, enfin presque.";
+  const box = document.getElementById('box');
+
+  document.getElementById('talk').onclick = () => {
+    const h = Charabia.speak(texte, voix);
+    if (!h) return;
+    const evs = h.timeline.events;
+    let i = 0, shown = 0;
+    (function tick () {
+      const t = Charabia.now() - h.start;
+      while (i < evs.length && evs[i].t <= t) { shown = Math.max(shown, evs[i].e); i++; }
+      box.textContent = texte.slice(0, shown);
+      if (t < h.timeline.total) requestAnimationFrame(tick); else box.textContent = texte;
+    })();
+  };
+</script>
+</body>
+</html>
