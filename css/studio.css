@@ -15,10 +15,11 @@ html{-webkit-text-size-adjust:100%;padding-top:env(safe-area-inset-top,0px);padd
 body{margin:0}
 img,canvas{max-width:100%}
 [hidden]{display:none!important}
-html,body{background:var(--felt-4)}
+html{background:var(--felt-4)}
+body{background:transparent}
 body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
-#bg{position:fixed;inset:0;width:100%;height:100%;z-index:-1;image-rendering:pixelated;display:block}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;image-rendering:pixelated;display:block}
 #crt{position:fixed;inset:0;pointer-events:none;z-index:40;display:none;
   background:repeating-linear-gradient(to bottom,rgba(0,0,0,.24) 0 1px,rgba(0,0,0,0) 1px 3px),
              radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(0,0,0,.55) 100%);
@@ -26,7 +27,7 @@ body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
 .crt-on #crt{display:block}
 .crt-on .dtext,.crt-on .logo{text-shadow:1px 0 rgba(255,70,70,.45),-1px 0 rgba(70,200,255,.45),0 2px 0 rgba(0,0,0,.5)}
 @keyframes flick{0%,100%{opacity:1}47%{opacity:.88}48%{opacity:1}83%{opacity:.94}}
-.wrap{max-width:1240px;margin:0 auto;display:grid;gap:18px}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;display:grid;gap:18px}
 button,input,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 
