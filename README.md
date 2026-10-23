@@ -47,4 +47,4 @@ Les navigateurs n'autorisent le son qu'après une interaction de l'utilisateur :
 
 ## Format de voix
 
-Un objet simple ; toute clé absente prend sa valeur par défaut (`Charabia.DEFAULT`), toute valeur hors bornes est ramenée dans `Charabia.NUM` / `Charabia.ENUM`. Le code `MUMBLE1.` est ce même objet, en tableau JSON encodé en base64url, dans l'ordre de `Charabia.KEYS`.
+Un objet simple ; toute clé absente prend sa valeur par défaut (`Charabia.DEFAULT`), toute valeur hors bornes est ramenée dans `Charabia.NUM` / `Charabia.ENUM`. Le code `MUMBLE1.` est ce même objet, en tableau JSON encodé en base64url, dans l'ordre de `Charabia.KEYS`. Un objet facultatif peut suivre en dernière position (le studio y range le titre et l'apparence du personnage) : le moteur l'ignore pour jouer, `Charabia.readCode(code)` le renvoie dans `extra`.

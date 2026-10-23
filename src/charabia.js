@@ -514,26 +514,35 @@ function speak(text, voice, opts = {}){
 /* ============ Code de voix ============ */
 const b64e = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64d = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
-function encodeVoice(p){ return 'MUMBLE1.' + b64e(JSON.stringify(KEYS.map(k => p[k]))); }
-function decodeVoice(str){
-  str = str.trim();
-  if (str.startsWith('{')){ const o = JSON.parse(str); return sanitize(o.voice || o); }
-  const body = str.replace(/^MUMBLE1\./i, '');
-  const arr = JSON.parse(b64d(body));
+// « extra » : objet libre (ex. titre et apparence côté studio), ajouté en fin de tableau.
+// Le moteur l'ignore pour jouer la voix ; readCode() le rend à qui en a besoin.
+const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+function encodeVoice(p, extra){
+  const arr = KEYS.map(k => p[k]);
+  if (isObj(extra) && Object.keys(extra).length) arr.push(extra);
+  return 'MUMBLE1.' + b64e(JSON.stringify(arr));
+}
+function readCode(str){
+  str = String(str).trim();
+  if (str.startsWith('{')){ const o = JSON.parse(str); return { voice:sanitize(o.voice || o), extra:isObj(o.studio) ? o.studio : null }; }
+  const arr = JSON.parse(b64d(str.replace(/^MUMBLE1\./i, '')));
   if (!Array.isArray(arr)) throw new Error('format');
   const o = {}; KEYS.forEach((k, i) => { if (i < arr.length) o[k] = arr[i]; });
-  return sanitize(o);
+  return { voice:sanitize(o), extra:isObj(arr[KEYS.length]) ? arr[KEYS.length] : null };
 }
-function jsonVoice(p){
-  const o = { format:'mumble-speak/1' }; KEYS.forEach(k => o[k] = p[k]); return JSON.stringify(o, null, 2);
+function decodeVoice(str){ return readCode(str).voice; }
+function jsonVoice(p, extra){
+  const o = { format:'charabia/1' }; KEYS.forEach(k => o[k] = p[k]);
+  if (isObj(extra)) o.studio = extra;
+  return JSON.stringify(o, null, 2);
 }
 
 root.Charabia = {
-  VERSION:'0.4',
+  VERSION:'0.5',
   MOODS, MOOD_KEYS, SCALES, DEFAULT, KEYS, NUM, ENUM,
   applyMacros, sanitize, analyze, build, moodMix,
   speak, stop,
-  encode:encodeVoice, decode:decodeVoice, toJSON:jsonVoice,
+  encode:encodeVoice, decode:decodeVoice, readCode, toJSON:jsonVoice,
   unlock:(ctx) => ensureAudio(ctx),
   now:() => AC ? AC.currentTime : 0,
   get analyser(){ return analyser; },

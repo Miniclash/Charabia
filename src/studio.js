@@ -17,22 +17,37 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '
 const asList = (l, fb) => Array.isArray(l) && l.filter(x => typeof x === 'string' && x.trim()).length ? l.filter(x => typeof x === 'string' && x.trim()) : fb;
 const RAW_LINES = window.CHARABIA_REPLIQUES || {};
 const SAMPLES = { fr:asList(RAW_LINES.fr, ['Bonjour !']), en:asList(RAW_LINES.en, ['Hello!']) };
+const HEAD_OPTS = [['auto','Auto'],['oreilles','Oreilles'],['antenne','Antenne'],['cornes','Cornes'],['meche','Mèche'],['rien','Rien']];
+const ACC_OPTS = [['auto','Auto'],['rien','Aucun'],['lunettes','Lunettes'],['chapeau','Chapeau'],['noeud','Nœud']];
+function normLook(o){
+  o = o || {};
+  return {
+    role: String(o.role || '').slice(0, 28),
+    head: HEAD_OPTS.some(h => h[0] === o.head) ? o.head : 'auto',
+    acc: ACC_OPTS.some(h => h[0] === o.acc) ? o.acc : 'auto'
+  };
+}
 const PRESETS = (Array.isArray(window.CHARABIA_PERSONNAGES) ? window.CHARABIA_PERSONNAGES : []).map(c => {
-  let p = null;
-  if (c.code){ try { p = decodeVoice(c.code); } catch(e){ console.warn('Charabia : code de voix illisible pour', c.nom); } }
+  let p = null, extra = null;
+  if (c.code){ try { const r = Charabia.readCode(c.code); p = r.voice; extra = r.extra; } catch(e){ console.warn('Charabia : code de voix illisible pour', c.nom); } }
   if (!p){
     const v = c.voix || {};
     p = Object.assign({}, DEFAULT, { age:v.age ?? DEFAULT.age, gender:v.gender ?? DEFAULT.gender, size:v.size ?? DEFAULT.size });
     applyMacros(p); Object.assign(p, v); p = sanitize(p);
   }
   if (c.nom) p.name = String(c.nom).slice(0, 24);
-  return { role:c.role || '', fr:c.fr || c.en || SAMPLES.fr[0], en:c.en || c.fr || SAMPLES.en[0], p };
+  const x = extra || {};
+  const look = normLook({ role:c.role ?? x.role, head:c.tete ?? x.head, acc:c.accessoire ?? x.acc });
+  return { look, fr:c.fr || c.en || SAMPLES.fr[0], en:c.en || c.fr || SAMPLES.en[0], p };
 });
-if (!PRESETS.length) PRESETS.push({ role:'', fr:SAMPLES.fr[0], en:SAMPLES.en[0], p:sanitize(DEFAULT) });
+if (!PRESETS.length) PRESETS.push({ look:normLook({}), fr:SAMPLES.fr[0], en:SAMPLES.en[0], p:sanitize(DEFAULT) });
 
 /* ============ État ============ */
 let P = Object.assign({}, DEFAULT);
-let presetIdx = 0;
+let LOOK = normLook({});          // titre + apparence (propres au studio)
+let sel = { t:'b', i:0 };         // carte active : { t:'b', i } intégrée, { t:'u', id } perso, ou null
+let dirty = false;                // modifié depuis le chargement d'une carte perso
+const lookExtra = () => ({ role:LOOK.role, head:LOOK.head, acc:LOOK.acc });
 
 /* ============ Lecture ============ */
 let current = null;
@@ -208,7 +223,7 @@ function syncMoods(){
   moodsHost.querySelectorAll('.mood').forEach(b => {
     const k = b.dataset.m;
     b.setAttribute('aria-pressed', k === P.mood);
-    drawCreature(b.querySelector('canvas'), P, k, { t:0, mouth:0, anim:false });
+    drawCreature(b.querySelector('canvas'), P, k, { t:0, mouth:0, anim:false }, LOOK);
   });
   $('#moodDesc').textContent = MOODS[P.mood].d;
 }
@@ -234,44 +249,119 @@ function copyText(text, fallbackEl, okMsg){
   try { navigator.clipboard.writeText(text).then(() => say(okMsg), fallback); } catch(e){ fallback(); }
 }
 $('#copyCode').addEventListener('click', () => copyText(P._code, $('#codeOut'), 'Code copié.'));
-$('#copyJson').addEventListener('click', () => copyText(jsonVoice(P), null, 'JSON copié.'));
+$('#copyJson').addEventListener('click', () => copyText(jsonVoice(P, lookExtra()), null, 'JSON copié.'));
 $('#loadCode').addEventListener('click', loadFromInput);
 $('#codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') loadFromInput(); });
 function loadFromInput(){
   const v = $('#codeIn').value; if (!v.trim()){ say('Collez d’abord un code dans le champ.', true); return; }
-  try { P = decodeVoice(v); presetIdx = -1; changed(true, true); say('Voix chargée : ' + P.name + '.'); $('#codeIn').value = ''; flipPortrait(); play(lineEl.value); }
+  try {
+    const r = Charabia.readCode(v);
+    P = r.voice; LOOK = normLook(r.extra); sel = null; dirty = false;
+    changed(true, true); say('Voix chargée : ' + P.name + '.'); $('#codeIn').value = ''; flipPortrait(); play(lineEl.value);
+  }
   catch(e){ say('Ce code n’est pas lisible. Vérifiez qu’il commence par MUMBLE1. et qu’il est complet.', true); }
 }
 
 /* ============ Deck ============ */
-const deck = $('#deck');
+const deck = $('#deck'), deckMsg = $('#deckMsg');
+const btnAdd = $('#deckAdd'), btnUpd = $('#deckUpdate'), btnDel = $('#deckDelete');
+const DECK_KEY = 'cs-deck';
+let USER = store.get(DECK_KEY);
+if (!Array.isArray(USER)) USER = [];
+USER = USER.filter(e => e && e.voice).map(e => ({ id:String(e.id), voice:sanitize(e.voice), look:normLook(e.look), line:typeof e.line === 'string' ? e.line : '' }));
+const saveUser = () => store.set(DECK_KEY, USER);
+const findUser = id => USER.find(e => e.id === id);
 function presetVoice(i){ return Object.assign({}, PRESETS[i].p); }
-deck.innerHTML = PRESETS.map((pr, i) => `<button type="button" class="card" data-i="${i}" aria-label="${esc(pr.p.name)}, ${esc(pr.role)}">
-  <span class="role">${esc(pr.role)}</span><span class="art" style="background:hsl(${pr.p.hue} 30% 22%)"><canvas width="40" height="40"></canvas></span>
-  <span class="nm">${esc(pr.p.name)}</span><span class="tag">${MOODS[pr.p.mood].n}</span></button>`).join('');
-deck.querySelectorAll('.card').forEach(c => {
-  const i = +c.dataset.i;
-  drawCreature(c.querySelector('canvas'), presetVoice(i), PRESETS[i].p.mood, { t:0, mouth:0, anim:false });
-  c.addEventListener('click', () => loadPreset(i, true));
-  if (!reduceMotion){
-    c.addEventListener('pointermove', e => { const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
-      c.style.setProperty('--ry', (x * 16) + 'deg'); c.style.setProperty('--rx', (-y * 16) + 'deg'); });
-    c.addEventListener('pointerleave', () => { c.style.setProperty('--ry', '0deg'); c.style.setProperty('--rx', '0deg'); });
-  }
+function cleanVoice(){ const v = Object.assign({}, P); delete v._code; return sanitize(v); }
+
+function cardHTML(v, look, attrs, mine){
+  return `<button type="button" class="card${mine ? ' mine' : ''}" ${attrs} aria-label="${esc(v.name)}${look.role ? ', ' + esc(look.role) : ''}">
+  <span class="role">${esc(look.role || (mine ? 'Ma voix' : ''))}</span><span class="art" style="background:hsl(${v.hue} 30% 22%)"><canvas width="40" height="40"></canvas></span>
+  <span class="nm">${esc(v.name || '???')}</span><span class="tag">${MOODS[v.mood].n}</span></button>`;
+}
+function renderDeck(){
+  let h = `<button type="button" class="card add" data-add="1"><span class="plus" aria-hidden="true">+</span>Ajouter la voix actuelle</button>`;
+  h += USER.map(e => cardHTML(e.voice, e.look, `data-u="${esc(e.id)}"`, true)).join('');
+  if (USER.length) h += `<span class="deck-sep" aria-hidden="true"></span>`;
+  h += PRESETS.map((pr, i) => cardHTML(pr.p, pr.look, `data-i="${i}"`, false)).join('');
+  deck.innerHTML = h;
+  deck.querySelectorAll('.card[data-u]').forEach(c => { const e = findUser(c.dataset.u); drawCreature(c.querySelector('canvas'), e.voice, e.voice.mood, { t:0, mouth:0, anim:false }, e.look); });
+  deck.querySelectorAll('.card[data-i]').forEach(c => { const pr = PRESETS[+c.dataset.i]; drawCreature(c.querySelector('canvas'), pr.p, pr.p.mood, { t:0, mouth:0, anim:false }, pr.look); });
+  syncDeck();
+}
+deck.addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  if (c.dataset.add) addToDeck();
+  else if (c.dataset.u) loadUser(c.dataset.u, true);
+  else loadPreset(+c.dataset.i, true);
 });
+if (!reduceMotion){
+  deck.addEventListener('pointermove', e => {
+    const c = e.target.closest('.card:not(.add)'); if (!c) return;
+    const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+    c.style.setProperty('--ry', (x * 16) + 'deg'); c.style.setProperty('--rx', (-y * 16) + 'deg');
+  });
+  deck.addEventListener('pointerout', e => { const c = e.target.closest('.card'); if (c && !c.contains(e.relatedTarget)){ c.style.setProperty('--ry', '0deg'); c.style.setProperty('--rx', '0deg'); } });
+}
+function deckSay(msg){ deckMsg.textContent = msg; }
 function loadPreset(i, speak){
   const lang = P.lang;
-  P = presetVoice(i); P.lang = lang; presetIdx = i;
+  P = presetVoice(i); P.lang = lang; LOOK = Object.assign({}, PRESETS[i].look); sel = { t:'b', i }; dirty = false;
   lineEl.value = PRESETS[i][lang];
-  changed(true, true);
+  changed(true, true); dirty = false; syncDeck();
   if (speak){ flipPortrait(); play(lineEl.value); }
 }
-function syncDeck(){ deck.querySelectorAll('.card').forEach(c => c.setAttribute('aria-pressed', +c.dataset.i === presetIdx)); }
+function loadUser(id, speak){
+  const e = findUser(id); if (!e) return;
+  P = Object.assign({}, e.voice); LOOK = Object.assign({}, e.look); sel = { t:'u', id };
+  if (e.line) lineEl.value = e.line;
+  changed(true, true); dirty = false; syncDeck();
+  if (speak){ flipPortrait(); play(lineEl.value); }
+}
+function addToDeck(){
+  const e = { id:Date.now().toString(36) + Math.random().toString(36).slice(2, 6), voice:cleanVoice(), look:Object.assign({}, LOOK), line:lineEl.value };
+  USER.unshift(e); saveUser();
+  sel = { t:'u', id:e.id }; dirty = false;
+  renderDeck(); deck.scrollTo({ left:0, behavior:reduceMotion ? 'auto' : 'smooth' });
+  deckSay(`« ${e.voice.name || '???'} » ajouté au deck.`);
+}
+function updateCard(){
+  if (!sel || sel.t !== 'u') return;
+  const e = findUser(sel.id); if (!e) return;
+  e.voice = cleanVoice(); e.look = Object.assign({}, LOOK); e.line = lineEl.value;
+  saveUser(); dirty = false; renderDeck();
+  deckSay(`Modifications de « ${e.voice.name || '???'} » enregistrées.`);
+}
+let delArmed = 0;
+function deleteCard(){
+  if (!sel || sel.t !== 'u') return;
+  const e = findUser(sel.id); if (!e) return;
+  if (!delArmed){
+    delArmed = setTimeout(() => { delArmed = 0; btnDel.textContent = 'Supprimer'; }, 4000);
+    btnDel.textContent = 'Confirmer ?'; return;
+  }
+  clearTimeout(delArmed); delArmed = 0; btnDel.textContent = 'Supprimer';
+  USER = USER.filter(x => x.id !== e.id); saveUser();
+  sel = null; renderDeck();
+  deckSay(`« ${e.voice.name || '???'} » retiré du deck. La voix reste chargée : « Ajouter au deck » pour la remettre.`);
+}
+btnAdd.addEventListener('click', addToDeck);
+btnUpd.addEventListener('click', updateCard);
+btnDel.addEventListener('click', deleteCard);
+function syncDeck(){
+  deck.querySelectorAll('.card[data-i]').forEach(c => c.setAttribute('aria-pressed', !!sel && sel.t === 'b' && +c.dataset.i === sel.i));
+  deck.querySelectorAll('.card[data-u]').forEach(c => c.setAttribute('aria-pressed', !!sel && sel.t === 'u' && c.dataset.u === sel.id));
+  const mine = !!sel && sel.t === 'u' && !!findUser(sel.id);
+  btnUpd.hidden = !mine; btnDel.hidden = !mine;
+  btnUpd.disabled = !dirty; btnUpd.style.opacity = dirty ? '' : '.55';
+  if (!mine && delArmed){ clearTimeout(delArmed); delArmed = 0; btnDel.textContent = 'Supprimer'; }
+}
 
 /* ============ Tirage ============ */
 const NAME_SYL = ['bo','ri','ka','lu','mo','zé','ta','pi','gor','fen','dra','mi','sha','ul','nok','bri','ze','pa','tou','vik','lo','nim','qua','ré'];
 function randName(){ const r = Math.random; let n = ''; const k = r() < .55 ? 2 : 3; for (let i = 0; i < k; i++) n += NAME_SYL[(r() * NAME_SYL.length) | 0]; return n[0].toUpperCase() + n.slice(1); }
 const pick = a => a[(Math.random() * a.length) | 0];
+const TITLES = ['Le vagabond','La marchande',"L'alchimiste",'Le barde','La capitaine','Le forgeron','La sorcière','Le bibliothécaire','La garde royale','Le pêcheur','La cartographe','Le cuisinier',"L'éclaireuse",'Le fossoyeur','La boulangère',"L'oracle"];
 function drawCharacter(){
   const r = Math.random, lang = P.lang;
   const p = Object.assign({}, DEFAULT, {
@@ -287,7 +377,8 @@ function drawCharacter(){
     crunch: r() < .2 ? (r() * 40) | 0 : 0, echo: r() < .2 ? (r() * 50) | 0 : 0
   });
   if (p.mood === 'robot') p.src = 'chip';
-  P = sanitize(p); presetIdx = -1;
+  P = sanitize(p); sel = null; dirty = false;
+  LOOK = normLook({ role:pick(TITLES), head:pick(HEAD_OPTS.slice(1))[0], acc:r() < .55 ? 'auto' : pick(ACC_OPTS.slice(1))[0] });
   lineEl.value = pick(SAMPLES[lang]);
   changed(true, true); flipPortrait(); play(lineEl.value);
 }
@@ -312,6 +403,14 @@ lineEl.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey ||
 lineEl.addEventListener('input', () => store.set('ms-line', lineEl.value));
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ stopCurrent(); finish(); } });
 $('#name').addEventListener('input', e => { P.name = e.target.value.slice(0, 24); changed(false); });
+$('#role').addEventListener('input', e => { LOOK.role = e.target.value.slice(0, 28); changed(false); });
+function buildLookSeg(id, opts, key){
+  const el = $('#' + id);
+  el.innerHTML = opts.map(o => `<button type="button" data-v="${o[0]}">${o[1]}</button>`).join('');
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; LOOK[key] = b.dataset.v; changed(false); });
+  return el;
+}
+const segHead = buildLookSeg('seg-head', HEAD_OPTS, 'head'), segAcc = buildLookSeg('seg-acc', ACC_OPTS, 'acc');
 $('#seed').addEventListener('change', e => { P.seed = clamp(+e.target.value | 0, 0, 9999); changed(true); });
 $('#reseed').addEventListener('click', () => { P.seed = (Math.random() * 9999) | 0; changed(true); });
 
@@ -338,11 +437,15 @@ function changed(doPreview, fullSync){
   portrait.style.setProperty('--pbg', `hsl(${P.hue} 28% 20%)`);
   const fx = { ivre:'fx-wave', joyeux:'fx-bounce', surexcite:'fx-bounce', effraye:'fx-shake', furieux:'fx-shake fx-angry', atone:'fx-dim', endormi:'fx-dim', chuchote:'fx-dim', robot:'fx-robot', triste:'fx-dim' }[P.mood] || '';
   dialog.className = 'dialog ' + (P.moodAmt > 10 ? fx : '');
+  if (document.activeElement !== $('#role')) $('#role').value = LOOK.role;
+  segHead.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === LOOK.head));
+  segAcc.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === LOOK.acc));
+  dirty = true;
   syncMoods(); syncDeck();
-  P._code = encodeVoice(P);
+  P._code = encodeVoice(P, lookExtra());
   $('#codeOut').value = P._code;
-  $('#jsonOut').textContent = jsonVoice(P);
-  const save = Object.assign({}, P); delete save._code; store.set('ms-voice', save);
+  $('#jsonOut').textContent = jsonVoice(P, lookExtra());
+  const save = Object.assign({}, P); delete save._code; store.set('ms-voice', save); store.set('ms-look', LOOK);
   if (doPreview) preview();
 }
 
@@ -408,7 +511,7 @@ function frame(ts){
     }
     if (!current.done && el > current.tl.total) finish();
   } else if (current && current.stopped && !current.done) finish();
-  drawCreature(hero, P, P.mood, { t, mouth, vowel, anim:!reduceMotion });
+  drawCreature(hero, P, P.mood, { t, mouth, vowel, anim:!reduceMotion }, LOOK);
   drawScope();
   if (!reduceMotion && !document.hidden && ts - lastBg > 70){ drawBg(t); lastBg = ts; }
   requestAnimationFrame(frame);
@@ -421,6 +524,7 @@ const logo = $('#logo');
   const s = document.createElement('span'); s.textContent = c; s.style.setProperty('--i', i); s.setAttribute('aria-hidden', 'true');
   if (i > 3) s.className = 'sp'; logo.appendChild(s);
 });
+{ const b = document.createElement('span'); b.className = 'studio-badge'; b.textContent = 'Studio'; b.setAttribute('aria-hidden', 'true'); logo.appendChild(b); }
 const crtT = $('#crtToggle');
 const crtSaved = store.get('ms-crt'); if (crtSaved === false) crtT.checked = false;
 const applyCrt = () => { document.documentElement.classList.toggle('crt-on', crtT.checked); store.set('ms-crt', crtT.checked); };
@@ -429,10 +533,11 @@ const apSaved = store.get('ms-auto'); if (apSaved === false) autoPrev.checked = 
 autoPrev.addEventListener('change', () => store.set('ms-auto', autoPrev.checked));
 
 const savedVoice = store.get('ms-voice'), savedLine = store.get('ms-line');
-if (savedVoice && typeof savedVoice === 'object'){ P = sanitize(savedVoice); presetIdx = -1; lineEl.value = savedLine || SAMPLES[P.lang][0]; }
-else { P = presetVoice(0); presetIdx = 0; lineEl.value = PRESETS[0].fr; }
+if (savedVoice && typeof savedVoice === 'object'){ P = sanitize(savedVoice); LOOK = normLook(store.get('ms-look')); sel = null; lineEl.value = savedLine || SAMPLES[P.lang][0]; }
+else { P = presetVoice(0); LOOK = Object.assign({}, PRESETS[0].look); sel = { t:'b', i:0 }; lineEl.value = PRESETS[0].fr; }
+renderDeck();
 const savedTab = store.get('ms-tab'); if (savedTab && document.getElementById(savedTab)) selectTab(document.getElementById(savedTab));
-changed(false, true);
+changed(false, true); dirty = false; syncDeck();
 renderDialogue(lineEl.value, true);
 nextEl.hidden = false;
 drawBg(0);

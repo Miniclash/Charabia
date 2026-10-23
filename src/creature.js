@@ -2,7 +2,9 @@
 (function (root) {
 'use strict';
 const MOUTH = { a:[4,1,3], o:[3,0,3], u:[2,1,1], i:[5,0,1.5], e:[4,0,2], y:[2,1,1.5], oe:[3,0,2.4] };
-function drawCreature(cv, p, mood, an){
+const HEADS = { oreilles:0, antenne:1, cornes:2, meche:3, rien:-1 };
+function drawCreature(cv, p, mood, an, look){
+  look = look || {};
   const g = cv.getContext('2d'); const S = 40;
   g.clearRect(0, 0, S, S);
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
@@ -25,12 +27,12 @@ function drawCreature(cv, p, mood, an){
   const inside = (x, y) => { const dx = (x + .5 - cx) / rw, dy = (y + .5 - cy) / rh; return dx * dx + dy * dy <= 1; };
   R(cx - rw + 2, 36, rw * 2 - 3, 1, 'rgba(0,0,0,.35)');
   // accessoires derrière le corps
-  const feat = robot ? 1 : p.seed % 4, top = Math.round(cy - rh);
+  const feat = look.head in HEADS ? HEADS[look.head] : (robot ? 1 : p.seed % 4), top = Math.round(cy - rh);
   const acc = robot ? '#c9d3d6' : shade;
   if (feat === 0){ for (const s of [-1, 1]){ const ex = Math.round(cx + s * rw * .55); R(ex - 2, top - 1, 4, 3, ink); R(ex - 1, top, 2, 2, body); } }
   else if (feat === 1){ R(cx, top - 5, 1, 5, ink); const lit = robot ? (Math.sin(t * 6) > 0 ? '#ff5a4d' : '#7a2420') : '#f6a623'; R(cx - 1, top - 7, 3, 3, ink); R(cx, top - 6, 1, 1, lit); }
   else if (feat === 2){ for (const s of [-1, 1]){ const ex = Math.round(cx + s * rw * .5); R(ex, top - 3, 1, 4, ink); R(ex + (s > 0 ? -1 : 1), top - 1, 1, 2, '#efe2c2'); } }
-  else { R(cx - 2, top - 2, 1, 3, acc); R(cx, top - 3, 1, 4, acc); R(cx + 2, top - 2, 1, 3, acc); }
+  else if (feat === 3){ R(cx - 2, top - 2, 1, 3, acc); R(cx, top - 3, 1, 4, acc); R(cx + 2, top - 2, 1, 3, acc); }
   // corps
   for (let y = Math.floor(cy - rh - 1); y <= cy + rh + 1; y++){
     for (let x = Math.floor(cx - rw - 1); x <= cx + rw + 1; x++){
@@ -69,11 +71,19 @@ function drawCreature(cv, p, mood, an){
     }
   };
   eye(cx - eX, -1); eye(cx + eX, 1);
-  // âge : sourcils gris + lunettes
-  if (age >= 65 && mood !== 'robot'){
-    R(cx - eX - 2, eyY - 3, 3, 1, '#d9d9d2'); R(cx + eX, eyY - 3, 3, 1, '#d9d9d2');
+  // âge : sourcils gris ; accessoire (auto = lunettes à partir de 65 ans)
+  if (age >= 65 && mood !== 'robot'){ R(cx - eX - 2, eyY - 3, 3, 1, '#d9d9d2'); R(cx + eX, eyY - 3, 3, 1, '#d9d9d2'); }
+  const accType = look.acc && look.acc !== 'auto' ? look.acc : (age >= 65 && mood !== 'robot' ? 'lunettes' : 'rien');
+  if (accType === 'lunettes'){
     for (const s of [-1, 1]){ const x = cx + s * eX; R(x - 2, eyY - 2, 5, 1, ink); R(x - 2, eyY + 2, 5, 1, ink); R(x - 2, eyY - 2, 1, 5, ink); R(x + 2, eyY - 2, 1, 5, ink); }
     R(cx - 1, eyY, 3, 1, ink);
+  } else if (accType === 'chapeau'){
+    const hc = '#2b2433';
+    R(cx - 6, top - 1, 13, 2, ink); R(cx - 5, top - 1, 11, 1, hc);
+    R(cx - 4, top - 7, 9, 7, ink); R(cx - 3, top - 6, 7, 5, hc); R(cx - 3, top - 3, 7, 1, '#f6a623');
+  } else if (accType === 'noeud'){
+    const bx = Math.round(cx + rw * .45), by = top + 1;
+    R(bx - 3, by - 2, 7, 5, ink); R(bx - 2, by - 1, 2, 3, '#ef4f45'); R(bx + 1, by - 1, 2, 3, '#ef4f45'); R(bx, by, 1, 1, '#ffb3ad');
   }
   // joues / nez
   const cheek = mood === 'ivre' || mood === 'furieux' ? '#e2504a' : '#f08da0';

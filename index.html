@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Charabia</title>
+<title>Charabia Studio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1 class="logo" aria-label="Charabia" id="logo"></h1>
+      <h1 class="logo" aria-label="Charabia Studio" id="logo"></h1>
       <p class="tagline">Studio de création de “voix” pour personnages de jeu vidéo. Tapez votre texte pour écouter le personnage “parler”. C'est magique !</p>
     </div>
     <div class="head-tools">
@@ -75,11 +75,16 @@
           <p class="pane-intro">Les curseurs âge, genre et carrure règlent la hauteur, le timbre et le débit dans l'onglet Son. Vous pouvez affiner ensuite.</p>
           <div class="ctls">
             <div class="ctl"><label for="name">Nom</label><input class="txt" id="name" maxlength="24" autocomplete="off"></div>
+            <div class="ctl"><label for="role">Titre</label><input class="txt" id="role" maxlength="28" autocomplete="off" placeholder="Le vagabond, la doyenne…"></div>
             <div class="ctl"><div class="ctl-top"><label for="seed">Graine de voix</label></div>
               <div class="row"><input class="txt" id="seed" type="number" min="0" max="9999"><button class="btn ghost sm" id="reseed" aria-label="Nouvelle graine">Dé</button></div>
               <small>Fixe la mélodie propre au perso : un même mot sonne toujours pareil.</small></div>
           </div>
           <div class="ctls" id="ctl-perso"></div>
+          <div class="ctls">
+            <div class="ctl"><span class="lab" id="lab-head">Tête</span><div class="seg" role="group" aria-labelledby="lab-head" id="seg-head"></div><small>Auto : choisie par la graine de voix.</small></div>
+            <div class="ctl"><span class="lab" id="lab-acc">Accessoire</span><div class="seg" role="group" aria-labelledby="lab-acc" id="seg-acc"></div><small>Auto : lunettes à partir de 65 ans.</small></div>
+          </div>
         </div>
 
         <div class="pane" role="tabpanel" id="pane-humeur" aria-labelledby="tab-humeur" hidden>
@@ -122,13 +127,21 @@
 
   <section class="panel" aria-label="Personnages">
     <div class="deck-head">
-      <h2>Le deck</h2>
-      <p class="hint">Piochez une carte pour charger sa voix. Chaque perso a sa réplique fétiche.</p>
+      <div>
+        <h2>Le deck</h2>
+        <p class="hint">Piochez une carte pour charger sa voix. Vos voix sont enregistrées dans ce navigateur uniquement.</p>
+      </div>
+      <div class="deck-tools">
+        <button class="btn gold sm" id="deckAdd">Ajouter au deck</button>
+        <button class="btn sm" id="deckUpdate" hidden>Enregistrer les modifs</button>
+        <button class="btn red sm" id="deckDelete" hidden>Supprimer</button>
+      </div>
     </div>
+    <p class="msg" id="deckMsg" role="status"></p>
     <div class="deck" id="deck"></div>
   </section>
 
-  <footer>Tout est synthétisé en direct dans votre navigateur avec la Web Audio API. Aucun sample, aucun serveur.</footer>
+  <footer>Charabia Studio, propulsé par le moteur Charabia. Tout est synthétisé en direct dans votre navigateur avec la Web Audio API. Aucun sample, aucun serveur.</footer>
 </div>
 
 <script src="src/charabia.js"></script>

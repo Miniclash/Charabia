@@ -176,3 +176,18 @@ footer{color:var(--dim);font-size:13px;text-align:center}
   .logo span,.ch.on,.next,#crt,.portrait.flip{animation:none!important}
   .fx-wave .ch.on,.fx-shake .ch.on,.fx-bounce .ch.on{animation:none!important}
 }
+
+/* Marque */
+.studio-badge{display:inline-block;vertical-align:top;margin-left:10px;transform:rotate(-6deg) translateY(4px);font-size:.32em;line-height:1;padding:4px 10px 6px;
+  background:var(--red);color:#fff;border:3px solid var(--edge);border-radius:8px;box-shadow:0 3px 0 var(--red-dk);letter-spacing:.06em}
+
+/* Deck perso */
+.deck-head{align-items:flex-end}
+.deck-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#deckMsg{margin-top:6px}
+.card.mine{background:#f6e2b3}
+.card.mine .role::before{content:"★ ";color:var(--gold-dk)}
+.card.add{background:transparent;color:var(--ink);border:3px dashed var(--muted);box-shadow:none;place-content:center;justify-items:center;font-family:var(--display);font-size:22px;line-height:1.05;padding:12px}
+.card.add .plus{font-size:64px;line-height:.7;color:var(--gold);text-shadow:0 3px 0 var(--edge)}
+.card.add:hover{border-color:var(--gold)}
+.deck-sep{flex:0 0 3px;align-self:stretch;background:var(--edge);border-radius:2px;margin:6px 4px}
